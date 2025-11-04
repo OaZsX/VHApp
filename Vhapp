@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoiceHarmony - Your Pocket Therapist</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f8ff;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #4a90e2;
+        }
+        #status {
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #fff;
+            display: none;
+        }
+        button {
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto;
+            width: 80%;
+            max-width: 300px;
+        }
+        button:hover {
+            background-color: #357abd;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #transcript {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 5px;
+            min-height: 100px;
+            border: 1px solid #ddd;
+            display: none;
+        }
+        #emotion {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        #intervention {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #e8f5e8;
+            border-radius: 5px;
+            display: none;
+            line-height: 1.6;
+        }
+        .privacy-note {
+            font-size: 12px;
+            text-align: center;
+            color: #666;
+            margin-top: 30px;
+        }
+        .data-sharing {
+            text-align: center;
+            margin: 10px 0;
+        }
+        .data-sharing input[type="checkbox"] {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>VoiceHarmony</h1>
+    <p style="text-align: center;">Speak naturally about your day, and let me help shift your mood in 1-3 minutes.</p>
+    
+    <div id="status"></div>
+    
+    <button id="startBtn">🎤 Start Speaking</button>
+    
+    <div id="transcript"></div>
+    
+    <div id="emotion"></div>
+    
+    <div id="intervention"></div>
+    
+    <div class="data-sharing">
+        <label>
+            <input type="checkbox" id="shareData"> Share anonymized insights (optional, local only)
+        </label>
+    </div>
+    
+    <p class="privacy-note">Privacy-first: All processing happens on your device. End-to-end encryption not applicable in this prototype (local storage optional).</p>
+
+    <script>
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        const startBtn = document.getElementById('startBtn');
+        const status = document.getElementById('status');
+        const transcriptDiv = document.getElementById('transcript');
+        const emotionDiv = document.getElementById('emotion');
+        const interventionDiv = document.getElementById('intervention');
+        const shareDataCheckbox = document.getElementById('shareData');
+
+        // Simple keyword-based emotion detector
+        const emotions = {
+            stressed: ['stress', 'rough', 'work', 'boss', 'tired', 'overwhelmed', 'deadline'],
+            anxious: ['worry', 'anxious', 'fear', 'nervous', 'panic', 'what if'],
+            joyful: ['happy', 'great', 'excited', 'joy', 'amazing', 'fun'],
+            low: ['sad', 'down', 'depressed', 'lonely', 'bad', 'hurt']
+        };
+
+        const interventions = {
+            stressed: {
+                title: '🧘‍♂️ Quick Breathing Reset',
+                content: 'Take a deep breath in for 4 counts... hold for 4... exhale for 4. Repeat 3 times. Imagine releasing tension with each exhale. How do you feel now?'
+            },
+            anxious: {
+                title: '🌿 Grounding Technique',
+                content: 'Name 5 things you see, 4 you can touch, 3 you hear, 2 you smell, 1 you taste. This anchors you in the present. Ready for the next step?'
+            },
+            joyful: {
+                title: '✨ Amplify the Good',
+                content: 'Savor this feeling! What made it so great? Jot one word of gratitude. Let\'s build on this positivity tomorrow.'
+            },
+            low: {
+                title: '💕 Gentle Self-Compassion',
+                content: 'It\'s okay to feel this way. Whisper to yourself: "This too shall pass." Reach out to a friend if needed. What small act of kindness can you do for yourself now?'
+            },
+            neutral: {
+                title: '📝 Reflection Prompt',
+                content: 'Sounds like a balanced moment. What\'s one thing you\'re looking forward to? Let\'s keep that momentum going.'
+            }
+        };
+
+        function detectEmotion(text) {
+            const lowerText = text.toLowerCase();
+            let detected = 'neutral';
+            let maxMatches = 0;
+
+            for (const [emotion, keywords] of Object.entries(emotions)) {
+                const matches = keywords.filter(keyword => lowerText.includes(keyword)).length;
+                if (matches > maxMatches) {
+                    maxMatches = matches;
+                    detected = emotion;
+                }
+            }
+
+            return detected;
+        }
+
+        function showIntervention(emotion) {
+            const interv = interventions[emotion] || interventions.neutral;
+            emotionDiv.textContent = `Detected: ${emotion.charAt(0).toUpperCase() + emotion.slice(1)}`;
+            emotionDiv.style.backgroundColor = emotion === 'joyful' ? '#d4edda' : 
+                                             emotion === 'stressed' || emotion === 'anxious' || emotion === 'low' ? '#f8d7da' : '#d1ecf1';
+            emotionDiv.style.display = 'block';
+
+            interventionDiv.innerHTML = `<h3>${interv.title}</h3><p>${interv.content}</p>`;
+            interventionDiv.style.display = 'block';
+        }
+
+        function handleShareData(emotion, text) {
+            if (shareDataCheckbox.checked) {
+                const anonymized = { emotion, timestamp: new Date().toISOString(), length: text.length };
+                localStorage.setItem('voiceharmony_insights', JSON.stringify([...(JSON.parse(localStorage.getItem('voiceharmony_insights') || '[]')), anonymized]));
+                status.textContent = 'Anonymized data saved locally for personal insights.';
+                status.style.backgroundColor = '#d4edda';
+                status.style.display = 'block';
+            }
+        }
+
+        recognition.onstart = () => {
+            status.textContent = 'Listening... Speak now!';
+            status.style.backgroundColor = '#fff3cd';
+            status.style.display = 'block';
+            startBtn.disabled = true;
+            transcriptDiv.style.display = 'none';
+            emotionDiv.style.display = 'none';
+            interventionDiv.style.display = 'none';
+        };
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            transcriptDiv.textContent = `You said: "${transcript}"`;
+            transcriptDiv.style.display = 'block';
+
+            const emotion = detectEmotion(transcript);
+            showIntervention(emotion);
+            handleShareData(emotion, transcript);
+
+            status.textContent = 'Analysis complete! Try again anytime.';
+            status.style.backgroundColor = '#d4edda';
+            status.style.display = 'block';
+        };
+
+        recognition.onerror = (event) => {
+            status.textContent = `Error: ${event.error}. Please try again.`;
+            status.style.backgroundColor = '#f8d7da';
+            status.style.display = 'block';
+            startBtn.disabled = false;
+        };
+
+        recognition.onend = () => {
+            startBtn.disabled = false;
+        };
+
+        startBtn.addEventListener('click', () => {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Your browser does not support speech recognition. Please use Chrome or Edge.');
+                return;
+            }
+            recognition.start();
+        });
+
+        // Load existing insights if any (for demo)
+        shareDataCheckbox.addEventListener('change', () => {
+            if (shareDataCheckbox.checked) {
+                const insights = JSON.parse(localStorage.getItem('voiceharmony_insights') || '[]');
+                console.log('Your anonymized insights:', insights); // In a real app, visualize this
+            }
+        });
+    </script>
+</body>
+</html>
